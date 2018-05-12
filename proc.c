@@ -7,6 +7,12 @@
 #include "proc.h"
 #include "spinlock.h"
 
+// Scheduler types
+#define DEFAULT 1
+#define FCFS    2
+#define SML     3
+#define DML     4
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -370,28 +376,13 @@ runprocess(struct cpu *c, struct proc *p) {
   switchkvm();
 }
 
-//PAGEBREAK: 42
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
+#if SCHEDULER == DEFAULT
 void
-scheduler(void)
+performschedule(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  c->proc = 0;
-  
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
-
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
@@ -405,8 +396,46 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
+}
+#elif SCHEDULER == FCFS
+void
+performschedule(void)
+{
+}
+#elif SCHEDULER == SML
+void
+performschedule(void)
+{
+}
+#elif SCHEDULER == DML
+void
+performschedule(void)
+{
+}
+#endif
 
+//PAGEBREAK: 42
+// Per-CPU process scheduler.
+// Each CPU calls scheduler() after setting itself up.
+// Scheduler never returns.  It loops, doing:
+//  - choose a process to run
+//  - swtch to start running that process
+//  - eventually that process transfers control
+//      via swtch back to the scheduler.
+void
+scheduler(void)
+{
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    performschedule()    ;
+    release(&ptable.lock);
   }
 }
 
