@@ -40,6 +40,20 @@ sys_wait2(void)
   return wait(retime, rutime, stime);
 }
 
+int sys_set_prio(void)
+{
+#if SCHEDULER==SML
+  int priority;
+  if (argint(0, &priority) < 0) {
+    return -1;
+  }
+
+  return set_prio(priority);
+#else
+  return -1;
+#endif
+}
+
 int
 sys_kill(void)
 {

@@ -7,12 +7,6 @@
 #include "proc.h"
 #include "spinlock.h"
 
-// Scheduler types
-#define DEFAULT 1
-#define FCFS    2
-#define SML     3
-#define DML     4
-
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -26,6 +20,8 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+#define DEFAULT_PRIORITY  2
+
 void
 pinit(void)
 {
@@ -37,6 +33,19 @@ int
 cpuid() {
   return mycpu()-cpus;
 }
+
+#if HAS_PRIORITY
+int
+set_prio(int newprio) {
+  if (newprio < 1 || newprio > 3) {
+    return 1;
+  }
+
+  acquire(&ptable.lock);
+  myproc()->priority = newprio;
+  release(&ptable.lock);
+}
+#endif
 
 // Must be called with interrupts disabled to avoid the caller being
 // rescheduled between reading lapicid and running through the loop.
@@ -191,6 +200,10 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
+#if HAS_PRIORITY
+  p->priority = DEFAULT_PRIORITY;
+#endif
+
   // this assignment to p->state lets other cores
   // run this process. the acquire forces the above
   // writes to be visible, and the lock is also needed
@@ -256,6 +269,10 @@ fork(void)
     if(curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);
   np->cwd = idup(curproc->cwd);
+
+#if HAS_PRIORITY
+  np->priority = curproc->priority;
+#endif
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
@@ -368,12 +385,19 @@ wait(uint *retime, uint *rutime, uint *stime)
 
 void
 runprocess(struct cpu *c, struct proc *p) {
+  // Switch to chosen process.  It is the process's job
+  // to release ptable.lock and then reacquire it
+  // before jumping back to us.
+  c->proc = p;
   switchuvm(p);
 
   changeprocessstate(p, RUNNING);
 
   swtch(&(c->scheduler), p->context);
   switchkvm();
+  // Process is done running for now.
+  // It should have changed its p->state before coming back.
+  c->proc = 0;
 }
 
 #if SCHEDULER == DEFAULT
@@ -383,29 +407,49 @@ performschedule(void)
   struct proc *p;
   struct cpu *c = mycpu();
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    if(p->state != RUNNABLE)
+      continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      runprocess(c, p);
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+    runprocess(c, p);
+  }
 }
 #elif SCHEDULER == FCFS
 void
 performschedule(void)
 {
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc *foundproc = 0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != RUNNABLE)
+      continue;
+    if (foundproc == 0 || foundproc->ctime > p->ctime) {
+      foundproc = p;
+    }
+  }
+  if (foundproc != 0) {
+    runprocess(c, foundproc);
+  }
 }
 #elif SCHEDULER == SML
 void
 performschedule(void)
 {
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc *foundproc = 0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != RUNNABLE)
+      continue;
+    if (foundproc == 0 || foundproc->priority < p->priority) {
+      foundproc = p;
+    }
+  }
+  if (foundproc != 0) {
+    runprocess(c, foundproc);
+  }
 }
 #elif SCHEDULER == DML
 void

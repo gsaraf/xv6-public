@@ -34,6 +34,14 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+// Scheduler types
+#define DEFAULT 1
+#define FCFS    2
+#define SML     3
+#define DML     4
+
+#define HAS_PRIORITY (SCHEDULER==SML || SCHEDULER==DML)
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -54,6 +62,9 @@ struct proc {
   uint retime;
   uint rutime;
   uint laststatechangetime;
+#if HAS_PRIORITY
+  int priority;
+#endif
 };
 
 // Process memory is laid out contiguously, low addresses first:
