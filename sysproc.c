@@ -23,7 +23,21 @@ sys_exit(void)
 int
 sys_wait(void)
 {
-  return wait();
+  return wait(0, 0, 0);
+}
+
+int
+sys_wait2(void)
+{
+  uint *retime;
+  uint *rutime;
+  uint *stime;
+  
+  if (argptr(0, (void*)&retime, sizeof(uint)) < 0 || argptr(1, (void*)&rutime, sizeof(uint)) < 0 || argptr(2, (void*)&stime, sizeof(uint)) < 0) {
+    return -1;
+  }
+
+  return wait(retime, rutime, stime);
 }
 
 int

@@ -65,6 +65,41 @@ myproc(void) {
   return p;
 }
 
+void
+changeprocessstate(struct proc *p, enum procstate newstate)
+{
+  uint xticks;
+
+  if (p->state == newstate) {
+    return;
+  }
+
+  acquire(&tickslock);
+  xticks = ticks;
+  release(&tickslock);
+
+  uint diff = xticks - p->laststatechangetime;
+
+  switch (p->state) {
+    case SLEEPING:
+      p->stime += diff;
+      break;
+    case RUNNING:
+      p->rutime += diff;
+      break;
+    case RUNNABLE:
+      p->retime += diff;
+      break;
+    case ZOMBIE:
+    case UNUSED:
+    case EMBRYO:
+      break;
+  }
+
+  p->laststatechangetime = xticks;
+  p->state = newstate;
+}
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -112,6 +147,14 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  acquire(&tickslock);
+  p->ctime = ticks;
+  release(&tickslock);
+  p->laststatechangetime = p->ctime;
+  p->stime = 0;
+  p->retime = 0;
+  p->rutime = 0;
+
   return p;
 }
 
@@ -148,7 +191,7 @@ userinit(void)
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
-  p->state = RUNNABLE;
+  changeprocessstate(p, RUNNABLE);
 
   release(&ptable.lock);
 }
@@ -214,7 +257,7 @@ fork(void)
 
   acquire(&ptable.lock);
 
-  np->state = RUNNABLE;
+  changeprocessstate(np, RUNNABLE);
 
   release(&ptable.lock);
 
@@ -262,7 +305,7 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
-  curproc->state = ZOMBIE;
+  changeprocessstate(curproc, ZOMBIE);
   sched();
   panic("zombie exit");
 }
@@ -270,7 +313,7 @@ exit(void)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(void)
+wait(uint *retime, uint *rutime, uint *stime)
 {
   struct proc *p;
   int havekids, pid;
@@ -296,6 +339,12 @@ wait(void)
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
+        if (retime != 0)
+          *retime = p->retime;
+        if (rutime != 0)
+          *rutime = p->rutime;
+        if (stime != 0)
+          *stime = p->stime;
         return pid;
       }
     }
@@ -309,6 +358,16 @@ wait(void)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
+}
+
+void
+runprocess(struct cpu *c, struct proc *p) {
+  switchuvm(p);
+
+  changeprocessstate(p, RUNNING);
+
+  swtch(&(c->scheduler), p->context);
+  switchkvm();
 }
 
 //PAGEBREAK: 42
@@ -340,11 +399,7 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+      runprocess(c, p);
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -386,7 +441,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
+  changeprocessstate(myproc(), RUNNABLE);
   sched();
   release(&ptable.lock);
 }
@@ -437,7 +492,7 @@ sleep(void *chan, struct spinlock *lk)
   }
   // Go to sleep.
   p->chan = chan;
-  p->state = SLEEPING;
+  changeprocessstate(p, SLEEPING);
 
   sched();
 
@@ -461,7 +516,7 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+      changeprocessstate(p, RUNNABLE);
 }
 
 // Wake up all processes sleeping on chan.
@@ -487,7 +542,7 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-        p->state = RUNNABLE;
+        changeprocessstate(p, RUNNABLE);
       release(&ptable.lock);
       return 0;
     }
