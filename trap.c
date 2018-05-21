@@ -103,7 +103,7 @@ trap(struct trapframe *tf)
   // Force process to give up CPU every QUANTA clock ticks.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER && SCHEDULER != FCFS) {
+     tf->trapno == T_IRQ0+IRQ_TIMER && SCHEDFLAG != FCFS) {
     acquire(&tickslock);
     uint xticks = ticks;
     release(&tickslock);

@@ -384,10 +384,11 @@ wait(uint *retime, uint *rutime, uint *stime)
 }
 
 void
-runprocess(struct cpu *c, struct proc *p) {
-  // Switch to chosen process.  It is the process's job
+runprocess(struct proc *p) {
+  // Switch to chosen process. It is the process's job
   // to release ptable.lock and then reacquire it
   // before jumping back to us.
+  struct cpu *c = mycpu();
   c->proc = p;
   switchuvm(p);
 
@@ -400,25 +401,23 @@ runprocess(struct cpu *c, struct proc *p) {
   c->proc = 0;
 }
 
-#if SCHEDULER == DEFAULT
+#if SCHEDFLAG == DEFAULT
 void
 performschedule(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state != RUNNABLE)
       continue;
 
-    runprocess(c, p);
+    runprocess(p);
   }
 }
-#elif SCHEDULER == FCFS
+#elif SCHEDFLAG == FCFS
 void
 performschedule(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
   struct proc *foundproc = 0;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -429,15 +428,14 @@ performschedule(void)
     }
   }
   if (foundproc != 0) {
-    runprocess(c, foundproc);
+    runprocess(foundproc);
   }
 }
-#elif SCHEDULER == SML
+#elif SCHEDFLAG == SML
 void
 performschedule(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
   struct proc *foundproc = 0;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -448,12 +446,13 @@ performschedule(void)
     }
   }
   if (foundproc != 0) {
-    runprocess(c, foundproc);
+    runprocess(foundproc);
   }
 }
-#elif SCHEDULER == DML
+#elif SCHEDFLAG == DML
 void
 performschedule(void)
+
 {
 }
 #endif

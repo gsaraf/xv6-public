@@ -42,7 +42,7 @@ sys_wait2(void)
 
 int sys_set_prio(void)
 {
-#if SCHEDULER==SML
+#if SCHEDFLAG==SML
   int priority;
   if (argint(0, &priority) < 0) {
     return -1;

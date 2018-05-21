@@ -40,7 +40,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 #define SML     3
 #define DML     4
 
-#define HAS_PRIORITY (SCHEDULER==SML || SCHEDULER==DML)
+#define HAS_PRIORITY (SCHEDFLAG==SML || SCHEDFLAG==DML)
 
 // Per-process state
 struct proc {
