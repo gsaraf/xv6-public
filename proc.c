@@ -20,8 +20,6 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-#define DEFAULT_PRIORITY  2
-
 void
 pinit(void)
 {
@@ -37,12 +35,26 @@ cpuid() {
 #if HAS_PRIORITY
 int
 set_prio(int newprio) {
-  if (newprio < 1 || newprio > 3) {
+  if (newprio < MIN_PRIORITY || newprio > MAX_PRIORITY) {
     return 1;
   }
 
   acquire(&ptable.lock);
   myproc()->priority = newprio;
+  release(&ptable.lock);
+
+  return 0;
+}
+#endif
+
+#if SCHEDFLAG == DML
+void reduce_proc_pri() {
+  acquire(&ptable.lock);
+  int priority = myproc()->priority;
+  if (priority > MIN_PRIORITY) {
+    priority -= 1;
+  }
+  myproc()->priority = priority;
   release(&ptable.lock);
 }
 #endif
@@ -443,6 +455,9 @@ performschedule(void)
       continue;
     if (foundproc == 0 || foundproc->priority < p->priority) {
       foundproc = p;
+      if (foundproc->priority == MAX_PRIORITY) {
+        break;
+      }
     }
   }
   if (foundproc != 0) {
@@ -452,8 +467,20 @@ performschedule(void)
 #elif SCHEDFLAG == DML
 void
 performschedule(void)
-
 {
+  struct proc *p;
+  struct proc *foundproc = 0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != RUNNABLE)
+      continue;
+    if (foundproc == 0 || foundproc->priority < p->priority) {
+      foundproc = p;
+    }
+  }
+  if (foundproc != 0) {
+    runprocess(foundproc);
+  }
 }
 #endif
 
@@ -587,8 +614,12 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
+#if SCHEDFLAG == DML
+      p->priority = MAX_PRIORITY;
+#endif
       changeprocessstate(p, RUNNABLE);
+    }
 }
 
 // Wake up all processes sleeping on chan.

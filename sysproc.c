@@ -54,6 +54,12 @@ int sys_set_prio(void)
 #endif
 }
 
+int sys_yield(void)
+{
+  yield();
+  return 0;
+}
+
 int
 sys_kill(void)
 {

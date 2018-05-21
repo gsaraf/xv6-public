@@ -40,6 +40,10 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 #define SML     3
 #define DML     4
 
+#define MIN_PRIORITY 1
+#define DEFAULT_PRIORITY  2
+#define MAX_PRIORITY 3
+
 #define HAS_PRIORITY (SCHEDFLAG==SML || SCHEDFLAG==DML)
 
 // Per-process state

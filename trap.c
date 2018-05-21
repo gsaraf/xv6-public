@@ -14,6 +14,10 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+#if SCHEDFLAG == DML
+extern void reduce_proc_pri();
+#endif
+
 void
 tvinit(void)
 {
@@ -107,7 +111,10 @@ trap(struct trapframe *tf)
     acquire(&tickslock);
     uint xticks = ticks;
     release(&tickslock);
-    if (xticks - myproc()->laststatechangetime > QUANTA) {
+    if (xticks - myproc()->laststatechangetime >= QUANTA) {
+#if SCHEDFLAG == DML
+      reduce_proc_pri();
+#endif
       yield();
     }
   }
