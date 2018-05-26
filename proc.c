@@ -95,16 +95,12 @@ myproc(void) {
 void
 changeprocessstate(struct proc *p, enum procstate newstate)
 {
-  uint xticks;
+  uint xticks = ticks;
 
   if (p->state == newstate) {
     return;
   }
-
-  acquire(&tickslock);
-  xticks = ticks;
-  release(&tickslock);
-
+  
   uint diff = xticks - p->laststatechangetime;
 
   switch (p->state) {
@@ -413,7 +409,9 @@ runprocess(struct proc *p) {
   c->proc = 0;
 }
 
+// Different implementations for performschedule follow
 #if SCHEDFLAG == DEFAULT
+// Give runtime to each runnable process 
 void
 performschedule(void)
 {
@@ -426,6 +424,7 @@ performschedule(void)
   }
 }
 #elif SCHEDFLAG == FCFS
+// Run the runnable process with the lowest creation time.
 void
 performschedule(void)
 {
@@ -443,7 +442,8 @@ performschedule(void)
     runprocess(foundproc);
   }
 }
-#elif SCHEDFLAG == SML
+#elif SCHEDFLAG == SML || SCHEDFLAG == DML
+// Run the first runnable process of the highest priority found
 void
 performschedule(void)
 {
@@ -458,24 +458,6 @@ performschedule(void)
       if (foundproc->priority == MAX_PRIORITY) {
         break;
       }
-    }
-  }
-  if (foundproc != 0) {
-    runprocess(foundproc);
-  }
-}
-#elif SCHEDFLAG == DML
-void
-performschedule(void)
-{
-  struct proc *p;
-  struct proc *foundproc = 0;
-
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != RUNNABLE)
-      continue;
-    if (foundproc == 0 || foundproc->priority < p->priority) {
-      foundproc = p;
     }
   }
   if (foundproc != 0) {

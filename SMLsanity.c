@@ -15,9 +15,6 @@ void proc_cpu() {
 	for (i =0 ; i< NUM_LOOPS ; ++i);
 	for (j =0 ; j<NUM_ITER ; ++j) {
 		*pi = j;
-//		if(j%1000 == 0) {
-//			printf(1,"%d",j);
-//		}
 	}
 	exit();
 }
@@ -42,18 +39,11 @@ void test() {
 			exit();
 		}
 		if (fret == 0) {
-//			printf(2,"child.pid %d\n",getpid());
 
-#ifdef SCHEDFLAG
 #if SCHEDFLAG==SML
-			extern int set_prio(int);
-			const int prio = get_prio_from_pid(getpid());
-			set_prio(prio);
-						printf(2,"child.pid %d prio:%d\n",getpid(),prio);
-
-
-
-#endif
+		const int prio = get_prio_from_pid(getpid());
+		set_prio(prio);
+		printf(2,"child.pid %d prio:%d\n",getpid(),prio);
 #endif
 
 #ifdef N_SYNC
@@ -63,9 +53,6 @@ void test() {
 							}
 #endif //N_SYNC
 		proc_cpu();
-		}
-		if ( fret >0 ) {
-			//			printf(2,"forked %d proc\n",fret);
 		}
 	}
 #ifdef N_SYNC

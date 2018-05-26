@@ -6,20 +6,19 @@ volatile int vi;
 volatile int* pi = &vi;
 
 #define NUM_LOOPS 100
-#define NUM_ITER 1000000
+#define NUM_ITER 100000
 void proc_cpu() {
 	volatile int i,j ;
-	for (i =0 ; i< NUM_LOOPS ; ++i);
-	for (j =0 ; j<NUM_ITER ; ++j) {
+	for (i =0 ; i < NUM_LOOPS ; ++i);
+	for (j =0 ; j < NUM_ITER ; ++j) {
 		*pi = j;
 	}
 }
 
 void proc_scpu() {
-	extern void yield(void);
 	volatile int i,j ;
-	for (i =0 ; i< NUM_LOOPS ; ++i);
-	for (j =0 ; j<NUM_ITER ; ++j) {
+	for (i =0 ; i < NUM_LOOPS ; ++i);
+	for (j =0 ; j < NUM_ITER ; ++j) {
 		yield();
 	}
 
@@ -27,7 +26,7 @@ void proc_scpu() {
 
 void proc_io() {
 	volatile int i;
-	for (i =0 ; i< NUM_LOOPS ; ++i) {
+	for (i =0 ; i < NUM_LOOPS ; ++i) {
 		sleep(1);
 	}
 
@@ -49,7 +48,7 @@ const char* proc_type(int pid) {
 	case 1: return "SCPU";
 	case 2: return "IO";
 	}
-	return "ERROR"; //here only for prevent warning
+	return "ERROR"; // here only to prevent warning
 }
 
 void test(const int n) {
@@ -68,10 +67,6 @@ void test(const int n) {
 		if (fret == 0) {
 			run_fun_proc(getpid());
 		}
-		if ( fret >0 ) {
-//			printf(2,"forked %d proc\n",fret);
-
-		}
 	}
 	for (i = 0 ; i<3*n ; ++i) {
 		uint s, re, ru;
@@ -89,8 +84,6 @@ void test(const int n) {
 		const double avg_sleep = sleep_time_arr[i] / num_p;
 		const double avg_wait = ready_time_arr[i] / num_p;
 		const double total_avg = (sleep_time_arr[i] + ready_time_arr[i] + running_time_arr[i]) / num_p ;
-		//		printf(1, "group type:%s\nsleep average:%f\n ready average:%f\n, Turnaround average:%f\n\n",
-		//				proc_type(i),avg_sleep ,avg_wait, total_avg );
 		printf(1, "group type:%s\nsleep average:%d\n ready average:%d\n, Turnaround average:%d\n\n",
 				proc_type(i),(int)avg_sleep ,(int)avg_wait,(int) total_avg );
 	}

@@ -61,13 +61,15 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  uint ctime;
-  uint stime;
-  uint retime;
-  uint rutime;
+
+  // Fields storing process runtime stats
+  uint ctime;                  // Creation time
+  uint stime;                  // Sleep time
+  uint retime;                 // Runnable time
+  uint rutime;                 // Running time
   uint laststatechangetime;
 #if HAS_PRIORITY
-  int priority;
+  int priority;                // Priority, if the scheduler supports it
 #endif
 };
 
